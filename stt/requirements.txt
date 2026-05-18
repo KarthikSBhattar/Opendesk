@@ -1,0 +1,6 @@
+RealtimeSTT==0.3.104
+google-genai>=1.0.0
+sounddevice
+httpx
+pyautogui
+pillow
