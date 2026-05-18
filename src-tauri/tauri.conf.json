@@ -38,6 +38,11 @@
       "entitlements": "Entitlements.plist",
       "infoPlist": "Info.plist"
     },
+    "resources": {
+      "../stt/realtime_stt_bridge.py": "stt/realtime_stt_bridge.py",
+      "../stt/computer_agent.py": "stt/computer_agent.py",
+      "../stt/requirements.txt": "stt/requirements.txt"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -78,12 +78,18 @@ pip install -r stt/requirements.txt
 
 ### 3. Configure environment variables
 
+**Running from source:**
 ```sh
 cp .env.example .env
 # Edit .env and fill in your keys (see Environment Variables below)
 ```
 
-The Rust shell reads `.env` at startup and injects all variables into the Python subprocess automatically.
+**Using the pre-built `.app`:** create your `.env` at:
+```
+~/Library/Application Support/com.karthikbhattar.open-desk/.env
+```
+
+The app reads `.env` from its data directory and injects all variables into the Python subprocess automatically.
 
 ### 4. Run in development mode
 
