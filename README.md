@@ -149,7 +149,7 @@ Set **one** of these for the Vertex AI backend:
 
 | Variable | Purpose |
 |---|---|
-| `GOOGLE_CLOUD_API_KEY` | Vertex AI Express mode key — easiest for Gemini models |
+| `GOOGLE_CLOUD_API_KEY` | Vertex AI Express mode key |
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID when using Application Default Credentials (required for Gemma MaaS) |
 | `GCLOUD_PROJECT` | Alias for `GOOGLE_CLOUD_PROJECT` (either works) |
 
@@ -159,8 +159,8 @@ Set **one** of these for the Vertex AI backend:
 |---|---|---|
 | `OPEN_DESK_AI_MODEL` | `google/gemma-4-26b-a4b-it-maas` | Primary model for routing and agent steps |
 | `OPEN_DESK_ROUTER_MODEL` | same as `OPEN_DESK_AI_MODEL` | Override the routing-only model |
-| `OPEN_DESK_THINKING_LEVEL` | `HIGH` (Gemini only) | Gemini thinking level (`LOW`, `MEDIUM`, `HIGH`) |
-| `OPEN_DESK_THINKING_BUDGET` | `1024` (Gemini only) | Max tokens for Gemini thinking (0–32768) |
+| `OPEN_DESK_THINKING_LEVEL` | `HIGH` | thinking level (`LOW`, `MEDIUM`, `HIGH`) |
+| `OPEN_DESK_THINKING_BUDGET` | `1024` | Max tokens is 32768 |
 
 **Vertex AI location** (optional — defaults to `global`):
 
