@@ -3,45 +3,71 @@
 A floating, always-on-top, voice-controlled AI agent for hands-free computer access. Built for everyone, especially the 61 million Americans with mobility disabilities.
 
 ---
-## The Problem
-Over **61 million** Americans live with a mobility disability. For many, that means a keyboard and mouse are simply out of reach.
-Currently, the only solutions are eye-tracking systems (that are unreliable and highly inaccurate) or intrusive brain-computer interfaces. Both options are expensive, difficult to set up, and often require users to remain impossibly still in front of a camera.
+### The Problem
+Over *61 million Americans* live with a mobility disability. Many simply can't use a keyboard or a mouse.
+There are tools like eye tracking, switch access, and voice dictation out there. But anyone who has used them knows how frustrating they are. Slow, exhausting, and limited. You can move a cursor or dictate a word, but you still can't book a doctor's appointment or send an email without a lot of struggle or someone else's help.
 
----
-## What Opendesk Does
-Opendesk is a lightweight, Gemma 4 powered agent that runs on your computer as an overlay and let's you control your entire computer by voice.
+For instance, eye tracking is considered one of the best accessibility solutions available today. But even a simple task can still be nearly impossible to complete accurately. Additionally, basic eye tracking setups start at around **$3,000**.
 
-## Architecture
+Another leading accessibility solution is Switch Access where users scan through options one by one and select with a button press or blink gesture. It works, but typing a single sentence can take minutes.
 
-OpenDesk is three layers working together: a tiny native window, a Python brain, and an AI agent that can see and control your screen.
+### What is Opendesk
+Opendesk is a different kind of accessibility tool. It's a voice-powered AI agent built on Gemma 4 that actually understands what you want and goes and does it. You don't need a keyboard, a mouse, or anyone's help.
+![Opendesk gif](assets/opendesk-demo.gif)
 
----
+### How it Works
+**Opendesk is three layers working together.**
 
-### The Frontend
+**1. Frontend**
+The first is the frontend. It's a small pill-shaped overlay that floats above every window on your screen. It shows you a live transcript of what you're saying, what the agent is doing, and speaks back to you when it's done.
+![frontend](assets/frontend.png)
+It's built with Tauri, React, and Rust. We chose Tauri over Electron because Tauri uses the system's native webview instead of bundling a full Chromium browser, keeping the app tiny and fast. Right when the app launches, the Rust layer automatically spawns the Python backend, loads your environment configuration, and connects the React frontend to it over a local HTTP connection.
 
-![Frontend](assets/frontend.png)
+**2. Bridge**
+The second layer is the Python backend. When Opendesk launches, Tauri starts a Python process in the background that does three things at once: runs a local event server that the frontend subscribes to, listens to your microphone through a local Whisper model, and handles speaking responses back to you through the Deepgram API.
+![bridge](assets/bridge.png)
+The microphone handling is more careful than it sounds. On macOS, virtual audio devices like BlackHole or Loopback can interfere and get picked up instead of your real mic. Opendesk waits for a physical microphone, filters those out, and reports any issues directly to the overlay. While you speak, it shows a live transcript. When you stop, it waits just a moment before sending your request to the AI so natural pauses don't accidentally cut you off.
 
-The visible part of OpenDesk is a 220×110 pixel pill that floats above every other window. It's built with Tauri (a Rust framework that wraps a React app in a native macOS shell) which is what lets it stay always-on-top without eating memory like a full browser would. When the app launches, Tauri's Rust layer immediately spawns the Python bridge as a background subprocess, loads your `.env` configuration, and wires up a log file at `/tmp/open-desk-stt.log`.
-The React UI inside the pill connects to that Python process over a local HTTP connection and listens for a stream of events — things like "the user started speaking", "the AI is thinking", "here's some audio to play". Everything you see (the animated audio meter, the scrolling transcript, the token counter) is driven by those events.
+Once it has your request, it makes the first Gemma 4 call, a router. Gemma 4 reads what you said and returns structured JSON describing whether it's a simple answer, a one-step direct action, or a multi-step computer task. If it's a simple question, it gets answered directly. If it's a basic command like "open Chrome," it gets done immediately without touching the screen agent. Anything more complex triggers the full agent loop. This is what keeps Opendesk efficient for everyday commands.
 
----
+**3. Agent**
+The third and final piece is the agent, what makes Opendesk actually useful. When a task needs real computer control, the agent takes over. It works in a simple loop: take a screenshot, send it to Gemma 4 along with the goal and everything it's done so far, get back one action, execute it, then look at the screen again before deciding what to do next.
 
-### The Bridge
+We ask the model for one action at a time on purpose. It's slower than running a script with a list of actions, but it ensures the agent is always looking at the screen before doing anything. That way it won't miss a popup, a failed click, or a page that loaded differently than expected.
+![agent](assets/agent.png)
+Gemma 4's visual grounding capabilities are what made Opendesk possible. Gemma 4 can look at a screenshot, find a button or a text field, and return its exact x and y coordinates. Most flagship vision models still can't do that reliably. For a voice powered computer-use assistant, grounding is the heart of the system. If you can't tell the agent exactly where to click, nothing works.
 
-![Bridge](assets/bridge.png)
+Actions can be clicks, typing, keyboard shortcuts, scrolling, dragging, opening apps, opening URLs, or just waiting for something to load. While the agent is working, it narrates what it's doing out loud so the user always knows what's happening without having to watch the screen.
 
-The Python bridge (`stt/realtime_stt_bridge.py`) is the hub that connects your voice to the AI. It runs three threads simultaneously. The first is a small HTTP server on port 38476 that broadcasts Server-Sent Events to the React frontend. The second is the speech-to-text loop: it captures audio from your microphone, runs it through a local Whisper model for a live rolling preview, and once you stop talking it produces a finalized transcript and sends it to the AI. The third thread is the text-to-speech worker: it pulls text off a queue, streams it to the Deepgram API, and broadcasts the raw audio back to React, which plays it using the Web Audio API — all in real time, so the AI starts speaking before it's finished generating.
+A lot of work went into making this loop reliable. The agent loop lives and dies on whether Gemma 4 returns clean structured JSON every single time. A bad response can break the whole loop or trajectory of the agent. That's why we built a robust set of checks into every step. For instance, before executing any action, the agent checks if it's already tried the same thing recently and switches strategy if it has. After typing anything, it compares screenshots before and after to verify the text actually landed in the right place.
 
-When a transcript arrives, the bridge asks the AI to classify what kind of request it is. A factual question goes one way. A command like "open Safari" or "press Command-Tab" goes another. Anything that requires looking at the screen and taking multiple steps triggers the full agent loop.
+After every single action, Opendesk uses Gemma 4 as a completion judge, asking whether the task is done, whether another step is needed, or whether to stop and ask the user for more information. This is what lets the agent prevent getting into loops, recover from mistakes, avoid repeating failed actions, and stop for clarification when guessing would be risky. If the user starts speaking while the agent is working, it stops immediately and listens so you never have to wait for it to finish before correcting it.
 
----
+### Challenges
+**Latency**
+Opendesk originally ran on device but was taking 10+ minutes for even a simple task. To address this, we moved across different providers like OpenRouter and AI Studio before settling on Vertex AI using google/gemma-4-26b-a4b-it-maas. We also added screenshot caching, background refreshes, and direct-action routing to reduce latency further.
 
-### The Agent
+**macOS Permissions**
+Opendesk needs microphone access, screen capture, accessibility controls, and always-on-top window behavior. On macOS those all sit behind different permission prompts and APIs, and getting all of them working reliably took significant trial and error.
 
-![Agent](assets/agent.png)
+**Frontend and Backend Sync**
+The Python process and the Tauri app are completely separate so we had to build a local event protocol from scratch. The SSE (Server-Sent Events) stream carries recording state, transcripts, audio levels, agent steps, TTS chunks, and completion events.
 
-The computer agent (`stt/computer_agent.py`) is what makes OpenDesk actually useful for hands-free computer control. When the bridge decides a request needs visual reasoning, it hands off to an agent loop that runs up to 12 steps. Each step is the same cycle: take a screenshot of your screen, send it to the AI model along with what's happened so far, parse the action the model decides to take, and execute it. Actions can be clicks, typing, keyboard shortcuts, scrolling, opening apps or URLs, or just waiting a moment for something to load. After each action it captures a fresh screenshot so the model can see what changed before deciding what to do next. When the model decides the task is done — or the step budget runs out — the loop ends and a summary is spoken back to you.
+**Real-time Speech and Barge-in**
+Speech is messier than it looks as the backend has to stream partial transcripts, avoid firing during natural pauses, and handle interruptions. If the agent starts doing the wrong thing, speaking cancels it immediately, clears queued speech, and treats what you just said as the new command.
 
+**Safe Text Entry**
+Typing is riskier than it sounds because the wrong field might be focused without the agent knowing, causing the agent to go off course or even get stuck in a loop. Opendesk checks whether the screen actually changed after typing and asks the user for help after repeated failed attempts rather than keep trying.
+
+### Impact
+Opendesk started as an accessibility tool for people with mobility disabilities. But the more we built it, the more we realized the problem it solves is bigger than that. Billions of people struggle with computers not because of a physical disability but because they never had the chance to learn. 
+
+There are entire regions of the world where digital literacy is low and people can't navigate computers confidently enough to access healthcare, education, or economic opportunity. If you can speak, you can use Opendesk. You don't need to know where the settings menu is or how to fill out a form. You just say what you want and it happens.
+
+As Gemma models get smaller and more powerful, the vision is for Opendesk to run fully on device anywhere in the world with no internet required. Whether it's a cheap laptop in a rural clinic or a shared computer in a community center, all of it becomes fully usable with just your voice.
+
+### Conclusion
+Technology should work for everyone. Not just people who can type and click. Opendesk is a step toward a world where your voice is enough to participate fully in the digital world, no matter who you are or where you live.
 ---
 
 ## Prerequisites
