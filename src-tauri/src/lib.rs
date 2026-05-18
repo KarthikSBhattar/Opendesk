@@ -88,6 +88,12 @@ fn find_system_python() -> Option<std::path::PathBuf> {
     None
 }
 
+fn requirements_hash(requirements: &std::path::Path) -> String {
+    std::fs::read_to_string(requirements)
+        .map(|s| format!("{:x}", s.len() ^ s.bytes().fold(0usize, |a, b| a.wrapping_add(b as usize))))
+        .unwrap_or_default()
+}
+
 fn ensure_venv(
     system_python: &std::path::Path,
     venv_dir: &std::path::Path,
@@ -95,50 +101,43 @@ fn ensure_venv(
     log_file: Option<&std::fs::File>,
 ) -> std::path::PathBuf {
     let venv_python = venv_dir.join("bin").join("python");
+    let marker = venv_dir.join(".deps_hash");
 
     if !venv_python.exists() {
         eprintln!("OpenDesk: creating venv at {}", venv_dir.display());
         let _ = Command::new(system_python)
             .args(["-m", "venv", venv_dir.to_str().unwrap_or("")])
-            .stdout(
-                log_file
-                    .and_then(|f| f.try_clone().ok())
-                    .map(Stdio::from)
-                    .unwrap_or_else(Stdio::null),
-            )
-            .stderr(
-                log_file
-                    .and_then(|f| f.try_clone().ok())
-                    .map(Stdio::from)
-                    .unwrap_or_else(Stdio::null),
-            )
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .status();
     }
 
-    // Install / upgrade deps every launch so updates to requirements.txt apply
     if venv_python.exists() && requirements.exists() {
-        eprintln!("OpenDesk: installing requirements");
-        let pip = venv_dir.join("bin").join("pip");
-        let _ = Command::new(&pip)
-            .args([
-                "install",
-                "-q",
-                "-r",
-                requirements.to_str().unwrap_or(""),
-            ])
-            .stdout(
-                log_file
-                    .and_then(|f| f.try_clone().ok())
-                    .map(Stdio::from)
-                    .unwrap_or_else(Stdio::null),
-            )
-            .stderr(
-                log_file
-                    .and_then(|f| f.try_clone().ok())
-                    .map(Stdio::from)
-                    .unwrap_or_else(Stdio::null),
-            )
-            .status();
+        let current_hash = requirements_hash(requirements);
+        let stored_hash = std::fs::read_to_string(&marker).unwrap_or_default();
+
+        if current_hash != stored_hash {
+            eprintln!("OpenDesk: installing requirements");
+            let pip = venv_dir.join("bin").join("pip");
+            let status = Command::new(&pip)
+                .args(["install", "-q", "-r", requirements.to_str().unwrap_or("")])
+                .stdout(
+                    log_file
+                        .and_then(|f| f.try_clone().ok())
+                        .map(Stdio::from)
+                        .unwrap_or_else(Stdio::null),
+                )
+                .stderr(
+                    log_file
+                        .and_then(|f| f.try_clone().ok())
+                        .map(Stdio::from)
+                        .unwrap_or_else(Stdio::null),
+                )
+                .status();
+            if status.map(|s| s.success()).unwrap_or(false) {
+                let _ = std::fs::write(&marker, &current_hash);
+            }
+        }
     }
 
     venv_python
@@ -184,17 +183,6 @@ fn start_stt_bridge(app: &tauri::App) -> Option<Child> {
 
     terminate_existing_stt_bridges();
 
-    // PYTHONPATH so packages survive any macOS framework Python re-exec
-    let venv_lib = venv_dir.join("lib");
-    let pythonpath = std::fs::read_dir(&venv_lib)
-        .ok()
-        .and_then(|mut entries| {
-            entries.find_map(|e| {
-                let sp = e.ok()?.path().join("site-packages");
-                sp.exists().then_some(sp)
-            })
-        });
-
     // .env lives next to the venv in the user data dir
     let env_path = data_dir.join(".env");
     let env_vars = load_dotenv(&env_path);
@@ -215,10 +203,6 @@ fn start_stt_bridge(app: &tauri::App) -> Option<Child> {
                 .map(Stdio::from)
                 .unwrap_or_else(Stdio::null),
         );
-
-    if let Some(sp) = pythonpath {
-        cmd.env("PYTHONPATH", sp);
-    }
 
     for (key, val) in env_vars {
         cmd.env(key, val);
