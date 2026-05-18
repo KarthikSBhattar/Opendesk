@@ -100,7 +100,7 @@ source .venv312/bin/activate
 pip install -r stt/requirements.txt
 ```
 
-> The Rust shell looks for `.venv312/bin/python` first, then `.venv/bin/python`, then system `python3`.
+> This venv is for running the Python bridge manually (debugging). When you run `npm run tauri -- dev`, the Rust shell auto-creates its own `.venv` in `~/Library/Application Support/com.karthikbhattar.open-desk/` and installs dependencies there automatically.
 
 ### 3. Configure environment variables
 
@@ -120,7 +120,7 @@ The app reads `.env` from its data directory and injects all variables into the 
 ### 4. Run in development mode
 
 ```sh
-npm run tauri dev
+npm run tauri -- dev
 ```
 
 This starts the Vite dev server and the Tauri window together. The Python bridge launches automatically. Logs go to `/tmp/open-desk-stt.log`.
@@ -151,6 +151,7 @@ Set **one** of these for the Vertex AI backend:
 |---|---|
 | `GOOGLE_CLOUD_API_KEY` | Vertex AI Express mode key — easiest for Gemini models |
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID when using Application Default Credentials (required for Gemma MaaS) |
+| `GCLOUD_PROJECT` | Alias for `GOOGLE_CLOUD_PROJECT` (either works) |
 
 ### AI model
 
@@ -158,7 +159,8 @@ Set **one** of these for the Vertex AI backend:
 |---|---|---|
 | `OPEN_DESK_AI_MODEL` | `google/gemma-4-26b-a4b-it-maas` | Primary model for routing and agent steps |
 | `OPEN_DESK_ROUTER_MODEL` | same as `OPEN_DESK_AI_MODEL` | Override the routing-only model |
-| `OPEN_DESK_THINKING_LEVEL` | `HIGH` (Gemini 3 only) | Gemini thinking budget |
+| `OPEN_DESK_THINKING_LEVEL` | `HIGH` (Gemini only) | Gemini thinking level (`LOW`, `MEDIUM`, `HIGH`) |
+| `OPEN_DESK_THINKING_BUDGET` | `1024` (Gemini only) | Max tokens for Gemini thinking (0–32768) |
 
 **Vertex AI location** (optional — defaults to `global`):
 
