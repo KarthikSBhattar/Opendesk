@@ -111,16 +111,33 @@ def screen_size() -> tuple[int, int]:
 
 def take_screenshot(max_width: int = SCREENSHOT_MAX_WIDTH) -> bytes:
     """Capture screen, resize to max_width if needed, return PNG bytes."""
+    from PIL import Image
+
+    img = None
+
+    # mss uses CoreGraphics via ctypes — inherits the app bundle's TCC screen-recording
+    # permission without spawning a subprocess that would trigger a separate TCC prompt.
     try:
-        import pyautogui
-        from PIL import Image
-        img = pyautogui.screenshot()
+        import mss
+        with mss.mss() as sct:
+            monitor = sct.monitors[0]
+            shot = sct.grab(monitor)
+            img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
     except Exception:
+        pass
+
+    if img is None:
+        try:
+            import pyautogui
+            img = pyautogui.screenshot()
+        except Exception:
+            pass
+
+    if img is None:
         import subprocess, tempfile
         path = tempfile.mktemp(suffix=".png")
         try:
-            subprocess.run(["screencapture", "-x", path], check=True)
-            from PIL import Image
+            subprocess.run(["screencapture", "-x", path], check=True, timeout=8)
             img = Image.open(path)
             img.load()
         finally:
@@ -129,9 +146,11 @@ def take_screenshot(max_width: int = SCREENSHOT_MAX_WIDTH) -> bytes:
             except OSError:
                 pass
 
+    if img is None:
+        raise RuntimeError("All screenshot methods failed")
+
     w, h = img.size
     if w > max_width:
-        from PIL import Image
         img = img.resize((max_width, int(h * max_width / w)), Image.LANCZOS)
 
     buf = io.BytesIO()

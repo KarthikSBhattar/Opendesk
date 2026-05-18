@@ -495,9 +495,6 @@ def call_ai(text: str) -> None:
     AI_CANCEL.clear()
     AI_ACTIVE.set()
 
-    # Prime the screen cache in background immediately — will be ready by the time routing completes
-    threading.Thread(target=_refresh_screen_cache, daemon=True).start()
-
     try:
         try:
             from google import genai
@@ -552,7 +549,7 @@ def call_ai(text: str) -> None:
         router_resp = _generate_json(
             client,
             router_model,
-            current_contents,
+            contents,
             types,
             ROUTER_SYSTEM,
             AI_ROUTER_TIMEOUT_SECS,
@@ -573,7 +570,8 @@ def call_ai(text: str) -> None:
             broadcast({"type": "agent_done", "result": observation})
 
         elif route.get("type") == "computer_task":
-            # Multi-step workflow — speak opener then enter agent loop
+            # Multi-step workflow — prime screenshot cache now that we know we need it
+            threading.Thread(target=_refresh_screen_cache, daemon=True).start()
             opener = str(route.get("speak", "")).strip()
             if opener:
                 tts_enqueue(opener)

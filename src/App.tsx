@@ -290,13 +290,20 @@ function App() {
     const source = new EventSource(STT_EVENTS_URL);
     const fallbackTimer = window.setTimeout(() => {
       if (!bridgeConnectedRef.current) setIsDemoMode(true);
-    }, 1800);
+    }, 8000);
 
     source.onmessage = (message) => {
       bridgeConnectedRef.current = true;
       window.clearTimeout(fallbackTimer);
 
       const event = JSON.parse(message.data) as SttEvent;
+
+      if (event.type === "bridge_connected") {
+        setIsDemoMode(false);
+        setStatusText("Gemma is loading");
+        setIsModelLoading(true);
+        return;
+      }
 
       if (event.type === "error") {
         console.error(event.message);
@@ -532,10 +539,11 @@ function App() {
       isAiActiveRef.current = false;
       setIsThinking(false);
       setIsRecording(false);
-      setIsModelLoading(false);
       setPlanStepText("");
-      setStatusText("Speech bridge disconnected");
-      if (!bridgeConnectedRef.current) setIsDemoMode(true);
+      if (bridgeConnectedRef.current) {
+        setIsModelLoading(false);
+        setStatusText("Speech bridge disconnected");
+      }
     };
 
     return () => {

@@ -4,3 +4,4 @@ sounddevice
 httpx
 pyautogui
 pillow
+mss

@@ -242,5 +242,3 @@ OpenDesk/
 **Only virtual inputs visible** — if BlackHole or Loopback is selected as the default, grant mic access or set `OPEN_DESK_STT_INPUT_DEVICE_MATCH` to your physical mic name.
 
 **Whisper takes too long to load** — increase `OPEN_DESK_STT_LOAD_TIMEOUT` or switch to a smaller model (`tiny.en`).
-
-**AI calls timing out** — increase the relevant `OPEN_DESK_AI_*_TIMEOUT` variable, or switch to a faster model.
