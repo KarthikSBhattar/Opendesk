@@ -1,12 +1,11 @@
 """Unit tests for realtime_stt_bridge.py — pure utility functions only."""
 import queue
-import pytest
 
+import pytest
 
 # Import the module; heavy deps (pyaudio, RealtimeSTT, google-genai) are
 # loaded lazily inside functions so this import is safe without a display/mic.
 import realtime_stt_bridge as bridge
-
 
 # ── _action_signature ─────────────────────────────────────────────────────────
 

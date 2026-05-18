@@ -1,7 +1,6 @@
 """Unit tests for computer_agent.py — pure functions only, no I/O."""
 import computer_agent as ca
 
-
 # ── parse_action ─────────────────────────────────────────────────────────────
 
 def test_parse_action_plain_json():

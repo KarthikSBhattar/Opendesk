@@ -134,7 +134,8 @@ def take_screenshot(max_width: int = SCREENSHOT_MAX_WIDTH) -> bytes:
             pass
 
     if img is None:
-        import subprocess, tempfile
+        import subprocess
+        import tempfile
         path = tempfile.mktemp(suffix=".png")
         try:
             subprocess.run(["screencapture", "-x", path], check=True, timeout=8)

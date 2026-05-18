@@ -22,6 +22,8 @@ call_ai() routing:
 The Rust shell (src-tauri/src/lib.rs) spawns this script and injects all
 .env variables into the subprocess environment before it starts.
 """
+import base64
+import concurrent.futures
 import json
 import math
 import os
@@ -31,14 +33,13 @@ import signal
 import sys
 import threading
 import time
-import base64
-import concurrent.futures
-from io import BytesIO
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 
 try:
-    import certifi
     import ssl
+
+    import certifi
 
     _CERTIFI_CA = certifi.where()
     os.environ.setdefault("SSL_CERT_FILE", _CERTIFI_CA)
@@ -92,7 +93,7 @@ _TIMEOUT_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
     thread_name_prefix="open-desk-timeout",
 )
 
-from computer_agent import (
+from computer_agent import (  # noqa: E402
     AGENT_SYSTEM,
     MAX_AGENT_STEPS,
     ROUTER_SYSTEM,
@@ -510,7 +511,6 @@ def call_ai(text: str) -> None:
             user_content = types.Content(role="user", parts=[types.Part.from_text(text=text)])
             CONVERSATION_HISTORY.append(user_content)
             contents = list(CONVERSATION_HISTORY)
-            current_contents = [user_content]
 
         model = os.environ.get("OPEN_DESK_AI_MODEL", "google/gemma-4-26b-a4b-it-maas")
         router_model = os.environ.get("OPEN_DESK_ROUTER_MODEL", model)
