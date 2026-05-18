@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["stt/tests"]
+pythonpath = ["stt"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

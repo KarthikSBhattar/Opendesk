@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+src-tauri/tmp*.png
+.pytest_cache/
+

@@ -1,4 +1,4 @@
-![OpenDesk](image.png)
+![OpenDesk](assets/image.png)
 ---
 A floating, always-on-top, voice-controlled AI agent for hands-free computer access. Built for everyone, especially the 61 million Americans with mobility disabilities.
 
@@ -19,7 +19,7 @@ OpenDesk is three layers working together: a tiny native window, a Python brain,
 
 ### The Frontend
 
-![Frontend](frontend.png)
+![Frontend](assets/frontend.png)
 
 The visible part of OpenDesk is a 220×110 pixel pill that floats above every other window. It's built with Tauri (a Rust framework that wraps a React app in a native macOS shell) which is what lets it stay always-on-top without eating memory like a full browser would. When the app launches, Tauri's Rust layer immediately spawns the Python bridge as a background subprocess, loads your `.env` configuration, and wires up a log file at `/tmp/open-desk-stt.log`.
 The React UI inside the pill connects to that Python process over a local HTTP connection and listens for a stream of events — things like "the user started speaking", "the AI is thinking", "here's some audio to play". Everything you see (the animated audio meter, the scrolling transcript, the token counter) is driven by those events.
@@ -28,7 +28,7 @@ The React UI inside the pill connects to that Python process over a local HTTP c
 
 ### The Bridge
 
-![Bridge](bridge.png)
+![Bridge](assets/bridge.png)
 
 The Python bridge (`stt/realtime_stt_bridge.py`) is the hub that connects your voice to the AI. It runs three threads simultaneously. The first is a small HTTP server on port 38476 that broadcasts Server-Sent Events to the React frontend. The second is the speech-to-text loop: it captures audio from your microphone, runs it through a local Whisper model for a live rolling preview, and once you stop talking it produces a finalized transcript and sends it to the AI. The third thread is the text-to-speech worker: it pulls text off a queue, streams it to the Deepgram API, and broadcasts the raw audio back to React, which plays it using the Web Audio API — all in real time, so the AI starts speaking before it's finished generating.
 
@@ -38,7 +38,7 @@ When a transcript arrives, the bridge asks the AI to classify what kind of reque
 
 ### The Agent
 
-![Agent](agent.png)
+![Agent](assets/agent.png)
 
 The computer agent (`stt/computer_agent.py`) is what makes OpenDesk actually useful for hands-free computer control. When the bridge decides a request needs visual reasoning, it hands off to an agent loop that runs up to 12 steps. Each step is the same cycle: take a screenshot of your screen, send it to the AI model along with what's happened so far, parse the action the model decides to take, and execute it. Actions can be clicks, typing, keyboard shortcuts, scrolling, opening apps or URLs, or just waiting a moment for something to load. After each action it captures a fresh screenshot so the model can see what changed before deciding what to do next. When the model decides the task is done — or the step budget runs out — the loop ends and a summary is spoken back to you.
 
@@ -222,6 +222,7 @@ The signed `.dmg` and `.app` are placed in `src-tauri/target/release/bundle/`.
 
 ```
 OpenDesk/
+├── assets/                     # Images and media used in docs
 ├── src/                        # React frontend
 │   ├── App.tsx                 # UI component: SSE client, audio playback, state
 │   ├── main.tsx                # React entry point
@@ -232,7 +233,8 @@ OpenDesk/
 ├── stt/                        # Python AI + audio backend
 │   ├── realtime_stt_bridge.py  # SSE server, STT loop, AI routing, TTS
 │   ├── computer_agent.py       # Screenshot, action execution, agent prompts
-│   └── requirements.txt        # Python dependencies
+│   ├── requirements.txt        # Python dependencies
+│   └── tests/                  # Python unit tests
 ├── .env.example                # Environment variable template
 └── package.json                # JS build scripts
 ```
